@@ -68,9 +68,9 @@ async def show_main_menu(message: Message, user: Dict[str, Any]) -> None:
     if not keyboard:
         await message.answer("❌ Ошибка загрузки меню")
         return
-    
+
     keys_count = get_active_keys_count(user['id'])
-    
+
     await message.answer(
         f"🏠 *Главное меню*\n\n"
         f"💡 У вас активных ключей: *{keys_count}*\n\n"
@@ -84,7 +84,7 @@ async def show_admin_panel(callback: CallbackQuery) -> None:
     """Показать админ-панель"""
     pending_users = get_pending_users()
     pending_count = len(pending_users)
-    
+
     await callback.message.edit_text(
         f"👑 *Админ-панель*\n\n"
         f"📝 Ожидают подтверждения: *{pending_count}*\n"
@@ -100,7 +100,7 @@ async def show_admin_panel(callback: CallbackQuery) -> None:
 async def cmd_start(message: Message, state: FSMContext) -> None:
     """Обработчик команды /start"""
     user = get_user_by_telegram_id(message.from_user.id)
-    
+
     if not user:
         await message.answer(
             "🎉 *Добро пожаловать в Magic Chest!*\n\n"
@@ -110,20 +110,20 @@ async def cmd_start(message: Message, state: FSMContext) -> None:
         )
         await state.set_state(RegistrationStates.waiting_for_name)
         return
-    
+
     if user['status'] == 'pending':
         await message.answer(
             "⏳ Ваша заявка на регистрацию ожидает подтверждения администратором.\n"
             "Пожалуйста, подождите."
         )
         return
-    
+
     if user['status'] == 'blocked':
         await message.answer(
             "🚫 Ваш аккаунт заблокирован. Обратитесь к администратору."
         )
         return
-    
+
     await show_main_menu(message, user)
 
 
@@ -133,10 +133,10 @@ async def cmd_admin(message: Message) -> None:
     if not is_admin(message.from_user.id):
         await message.answer("❌ Доступ запрещен")
         return
-    
+
     pending_users = get_pending_users()
     pending_count = len(pending_users)
-    
+
     await message.answer(
         f"👑 *Админ-панель*\n\n"
         f"📝 Ожидают подтверждения: *{pending_count}*\n"
@@ -152,23 +152,23 @@ async def cmd_admin(message: Message) -> None:
 async def process_registration_name(message: Message, state: FSMContext) -> None:
     """Обработка ввода имени при регистрации"""
     name = message.text.strip()
-    
+
     if not name or len(name) < MIN_NAME_LENGTH:
         await message.answer(f"❌ Имя должно содержать минимум {MIN_NAME_LENGTH} символа. Попробуйте еще раз:")
         return
-    
+
     if len(name) > MAX_NAME_LENGTH:
         await message.answer(f"❌ Имя не должно превышать {MAX_NAME_LENGTH} символов. Попробуйте еще раз:")
         return
-    
+
     if not re.match(r'^[a-zA-Zа-яА-Я0-9_\s]+$', name):
         await message.answer("❌ Имя содержит недопустимые символы. Используйте буквы, цифры и пробелы.")
         return
-    
+
     if not is_name_available(name):
         await message.answer(f"❌ Имя *{name}* уже занято. Пожалуйста, выберите другое имя:", parse_mode="Markdown")
         return
-    
+
     if add_user(message.from_user.id, name):
         admin_message = (
             f"📝 *Новая заявка на регистрацию!*\n\n"
@@ -176,7 +176,7 @@ async def process_registration_name(message: Message, state: FSMContext) -> None
             f"🆔 Telegram ID: `{message.from_user.id}`\n"
             f"📅 Дата: {datetime.now().strftime('%d.%m.%Y %H:%M')}\n"
         )
-        
+
         for admin_id in ADMIN_IDS:
             try:
                 await message.bot.send_message(
@@ -187,7 +187,7 @@ async def process_registration_name(message: Message, state: FSMContext) -> None
                 )
             except Exception as e:
                 logger.error(f"Не удалось отправить уведомление админу {admin_id}: {e}")
-        
+
         await message.answer(
             "✅ Вы успешно зарегистрированы!\n\n"
             "⏳ Ваша заявка отправлена на подтверждение администратору.\n"
@@ -208,17 +208,17 @@ async def callback_open_chest(callback: CallbackQuery) -> None:
         if not user or user['status'] != 'active':
             await callback.answer("❌ Ошибка доступа")
             return
-        
+
         keys_count = get_active_keys_count(user['id'])
         if keys_count == 0:
             await callback.answer("❌ У вас нет активных ключей!", show_alert=True)
             return
-        
+
         await callback.message.edit_text(
             chest_opening_animation(),
             parse_mode="Markdown"
         )
-        
+
         prize = get_prize_by_weight(user['id'])
         if not prize:
             await callback.message.answer(
@@ -227,24 +227,24 @@ async def callback_open_chest(callback: CallbackQuery) -> None:
                 reply_markup=main_menu(callback.from_user.id)
             )
             return
-        
+
         key_id = use_key(user['id'])
         if not key_id:
             await callback.message.answer("❌ Ошибка: ключ не найден")
             return
-        
+
         add_prize_history(
             user['id'], user['name'],
             prize['id'], prize['name'],
             key_id, 0, "Система"
         )
-        
+
         await callback.message.answer(
             f"🎉 *Поздравляем!*\n\n"
             f"В сундуке вы нашли *{prize['name']}*! 🎁",
             parse_mode="Markdown"
         )
-        
+
         admin_notify = (
             f"📦 *Нужно выдать приз!*\n\n"
             f"👤 Пользователь: *{user['name']}*\n"
@@ -256,7 +256,7 @@ async def callback_open_chest(callback: CallbackQuery) -> None:
                 await callback.bot.send_message(admin_id, admin_notify, parse_mode="Markdown")
             except Exception as e:
                 logger.error(f"Не удалось уведомить админа {admin_id}: {e}")
-        
+
         await callback.message.answer(
             "🏠 *Главное меню*",
             parse_mode="Markdown",
@@ -274,9 +274,9 @@ async def callback_history(callback: CallbackQuery) -> None:
     if not user:
         await callback.answer("❌ Ошибка доступа")
         return
-    
+
     history = get_user_history_by_month(user['id'])
-    
+
     if not history:
         await callback.message.edit_text(
             "📜 *История получения призов*\n\n"
@@ -285,15 +285,16 @@ async def callback_history(callback: CallbackQuery) -> None:
             reply_markup=back_button()
         )
         return
-    
+
     text = "📜 *Ваша история получения призов:*\n\n"
     for month, prizes in history.items():
         text += f"📅 *{month}*\n"
         for prize_name, data in prizes.items():
-            delivered_status = "✅ получен" if data['delivered'] == data['count'] else f"❌ не получен ({data['delivered']}/{data['count']})"
+            delivered_status = "✅ получен" if data['delivered'] == data[
+                'count'] else f"❌ не получен ({data['delivered']}/{data['count']})"
             text += f"🎁 {prize_name} — {data['count']} раз ({delivered_status})\n"
         text += "\n"
-    
+
     await callback.message.edit_text(
         text,
         parse_mode="Markdown",
@@ -308,12 +309,12 @@ async def callback_back(callback: CallbackQuery) -> None:
         if is_admin(callback.from_user.id):
             await show_admin_panel(callback)
             return
-        
+
         user = get_user_by_telegram_id(callback.from_user.id)
         if not user or user['status'] != 'active':
             await callback.answer("❌ Ошибка доступа")
             return
-        
+
         await callback.message.edit_text(
             "🏠 *Главное меню*",
             parse_mode="Markdown",
@@ -332,22 +333,22 @@ async def callback_confirm_registration(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     try:
         action = callback.data.split("_")[1]
-        
+
         text = callback.message.text
         match = re.search(r'🆔 Telegram ID: `(\d+)`', text)
         if not match:
             await callback.answer("❌ Не удалось определить пользователя")
             return
-        
+
         telegram_id = int(match.group(1))
         user = get_user_by_telegram_id(telegram_id)
         if not user:
             await callback.answer("❌ Пользователь не найден")
             return
-        
+
         if action == "confirm":
             update_user_status(telegram_id, 'active')
             await callback.message.edit_text(
@@ -355,7 +356,7 @@ async def callback_confirm_registration(callback: CallbackQuery) -> None:
                 f"Пользователь *{user['name']}* успешно зарегистрирован.",
                 parse_mode="Markdown"
             )
-            
+
             try:
                 await callback.bot.send_message(
                     telegram_id,
@@ -387,9 +388,9 @@ async def callback_admin_pending(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     pending_users = get_pending_users()
-    
+
     if not pending_users:
         await callback.message.edit_text(
             "📝 *Ожидающие подтверждения*\n\n"
@@ -398,7 +399,7 @@ async def callback_admin_pending(callback: CallbackQuery) -> None:
             reply_markup=back_button()
         )
         return
-    
+
     builder = InlineKeyboardBuilder()
     for user in pending_users:
         builder.button(
@@ -407,7 +408,7 @@ async def callback_admin_pending(callback: CallbackQuery) -> None:
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
-    
+
     await callback.message.edit_text(
         "📝 *Ожидающие подтверждения:*\n\n"
         "Нажмите на пользователя для подтверждения:",
@@ -422,20 +423,20 @@ async def callback_confirm_user(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     telegram_id = int(callback.data.split("_")[2])
     user = get_user_by_telegram_id(telegram_id)
-    
+
     if not user:
         await callback.answer("❌ Пользователь не найден")
         return
-    
+
     if user['status'] == 'active':
         await callback.answer("✅ Пользователь уже подтвержден")
         return
-    
+
     update_user_status(telegram_id, 'active')
-    
+
     await callback.message.edit_text(
         f"✅ *Пользователь подтвержден!*\n\n"
         f"👤 Имя: *{user['name']}*\n"
@@ -444,7 +445,7 @@ async def callback_confirm_user(callback: CallbackQuery) -> None:
         parse_mode="Markdown",
         reply_markup=back_button()
     )
-    
+
     try:
         await callback.bot.send_message(
             telegram_id,
@@ -466,9 +467,9 @@ async def callback_admin_prizes(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     prizes = get_all_prizes(active_only=False)
-    
+
     text = "🎁 *Управление призами*\n\n"
     if prizes:
         for prize in prizes:
@@ -476,9 +477,9 @@ async def callback_admin_prizes(callback: CallbackQuery) -> None:
             text += f"• {prize['name']} (вес: {prize['weight']}, лимит: {prize['monthly_limit']}/мес) - {status}\n"
     else:
         text += "😔 Призов пока нет.\n"
-    
+
     text += "\nВыберите действие:"
-    
+
     await callback.message.edit_text(
         text,
         parse_mode="Markdown",
@@ -492,7 +493,7 @@ async def callback_prize_add(callback: CallbackQuery, state: FSMContext) -> None
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     await callback.message.edit_text(
         "➕ *Добавление нового приза*\n\n"
         "Введите *название* приза:",
@@ -509,15 +510,16 @@ async def process_prize_name(message: Message, state: FSMContext) -> None:
     if not name:
         await message.answer("❌ Название не может быть пустым. Попробуйте снова:")
         return
-    
+
     if len(name) > 100:
         await message.answer("❌ Название слишком длинное (максимум 100 символов):")
         return
-    
+
     if get_prize_by_name(name):
-        await message.answer(f"❌ Приз с названием *{name}* уже существует. Введите другое название:", parse_mode="Markdown")
+        await message.answer(f"❌ Приз с названием *{name}* уже существует. Введите другое название:",
+                             parse_mode="Markdown")
         return
-    
+
     await state.update_data(prize_name=name)
     await message.answer(
         f"✅ Название: *{name}*\n\n"
@@ -541,7 +543,7 @@ async def process_prize_weight(message: Message, state: FSMContext) -> None:
     except ValueError:
         await message.answer("❌ Введите целое число (например, 10):")
         return
-    
+
     await state.update_data(prize_weight=weight)
     await message.answer(
         f"✅ Вес: *{weight}*\n\n"
@@ -565,11 +567,11 @@ async def process_prize_limit(message: Message, state: FSMContext) -> None:
     except ValueError:
         await message.answer("❌ Введите целое число (например, 5):")
         return
-    
+
     data = await state.get_data()
     name = data.get('prize_name')
     weight = data.get('prize_weight')
-    
+
     success = add_prize(name, weight, limit)
     if success:
         await message.answer(
@@ -582,7 +584,7 @@ async def process_prize_limit(message: Message, state: FSMContext) -> None:
         )
     else:
         await message.answer("❌ Ошибка при добавлении приза.", reply_markup=back_button())
-    
+
     await state.clear()
 
 
@@ -594,7 +596,7 @@ async def callback_admin_give_keys(callback: CallbackQuery, state: FSMContext) -
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     users = get_all_users('active')
     if not users:
         await callback.message.edit_text(
@@ -604,7 +606,7 @@ async def callback_admin_give_keys(callback: CallbackQuery, state: FSMContext) -
             reply_markup=back_button()
         )
         return
-    
+
     await callback.message.edit_text(
         "🔑 *Выдача ключей*\n\n"
         "Выберите пользователя:",
@@ -619,15 +621,15 @@ async def callback_give_keys_user(callback: CallbackQuery, state: FSMContext) ->
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     telegram_id = int(callback.data.split("_")[2])
     user = get_user_by_telegram_id(telegram_id)
     if not user:
         await callback.answer("❌ Пользователь не найден")
         return
-    
+
     await state.update_data(give_user_id=user['id'], give_user_name=user['name'])
-    
+
     await callback.message.edit_text(
         f"🔑 *Выдача ключей*\n\n"
         f"👤 Пользователь: *{user['name']}*\n\n"
@@ -644,7 +646,7 @@ async def process_give_keys_count(message: Message, state: FSMContext) -> None:
     if not is_admin(message.from_user.id):
         await message.answer("❌ Доступ запрещен")
         return
-    
+
     try:
         count = int(message.text.strip())
         if count <= 0:
@@ -656,19 +658,19 @@ async def process_give_keys_count(message: Message, state: FSMContext) -> None:
     except ValueError:
         await message.answer("❌ Введите число")
         return
-    
+
     data = await state.get_data()
     user_id = data.get('give_user_id')
     user_name = data.get('give_user_name')
-    
+
     if not user_id:
         await message.answer("❌ Ошибка: пользователь не выбран")
         await state.clear()
         return
-    
+
     admin_name = message.from_user.first_name or "Админ"
     added = add_keys(user_id, message.from_user.id, admin_name, count)
-    
+
     user = get_user_by_id(user_id)
     if user:
         try:
@@ -684,7 +686,7 @@ async def process_give_keys_count(message: Message, state: FSMContext) -> None:
             )
         except Exception as e:
             logger.error(f"Не удалось уведомить пользователя: {e}")
-    
+
     await message.answer(
         f"✅ *Ключи выданы!*\n\n"
         f"👤 Пользователь: {user_name}\n"
@@ -704,7 +706,7 @@ async def callback_admin_stats(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     users = get_all_users('active')
     if not users:
         await callback.message.edit_text(
@@ -714,7 +716,7 @@ async def callback_admin_stats(callback: CallbackQuery) -> None:
             reply_markup=back_button()
         )
         return
-    
+
     await callback.message.edit_text(
         "📊 *Статистика пользователей*\n\n"
         "Выберите пользователя:",
@@ -729,32 +731,33 @@ async def callback_stats_user(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     telegram_id = int(callback.data.split("_")[1])
     user = get_user_by_telegram_id(telegram_id)
     if not user:
         await callback.answer("❌ Пользователь не найден")
         return
-    
+
     history = get_user_history_by_month(user['id'])
     stats = get_user_total_stats(user['id'])
-    
+
     text = f"📊 *Статистика пользователя*\n\n"
     text += f"👤 *{user['name']}*\n"
     text += f"🔑 Активных ключей: {stats['active_keys']}\n"
     text += f"📦 Невыданных призов: {stats['undelivered']}\n"
     text += f"🎁 Всего получено: {stats['total_prizes']}\n\n"
-    
+
     if history:
         for month, prizes in history.items():
             text += f"📅 *{month}*\n"
             for prize_name, data in prizes.items():
-                delivered_status = "✅ получен" if data['delivered'] == data['count'] else f"❌ не получен ({data['delivered']}/{data['count']})"
+                delivered_status = "✅ получен" if data['delivered'] == data[
+                    'count'] else f"❌ не получен ({data['delivered']}/{data['count']})"
                 text += f"🎁 {prize_name} — {data['count']} раз ({delivered_status})\n"
             text += "\n"
     else:
         text += "😔 Пользователь еще не получал призов."
-    
+
     await callback.message.edit_text(
         text,
         parse_mode="Markdown",
@@ -782,7 +785,7 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
         )
         return
 
-    # Получаем список всех активных пользователей
+    # Получаем соответствие имя → ID пользователя
     from database import get_all_users
     all_users = get_all_users('active')
     users_map = {user['name']: user['id'] for user in all_users}
@@ -792,10 +795,11 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
         total = sum(prizes.values())
         user_id = users_map.get(user_name)
         if user_id is None:
-            continue  # если пользователь не найден — пропускаем
+            # Если пользователь не найден, пропускаем
+            continue
         builder.button(
             text=f"👤 {user_name} ({total} шт)",
-            callback_data=f"undelivered_user_{user_id}"  # ← передаём ID
+            callback_data=f"undelivered_user_{user_id}"
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
@@ -810,17 +814,32 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
 
 @router.callback_query(F.data.startswith("undelivered_user_"))
 async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
+    """Список невыданных призов пользователя"""
+
+    # ДИАГНОСТИКА
+    logger.warning(f"🔍 Получен callback: {callback.data}")
+
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
 
-    user_id = int(callback.data.replace("undelivered_user_", ""))
+    try:
+        user_id = int(callback.data.replace("undelivered_user_", ""))
+        logger.warning(f"🔍 Извлечён user_id: {user_id}")
+    except ValueError as e:
+        logger.error(f"❌ Ошибка преобразования user_id: {e}")
+        await callback.answer("❌ Ошибка данных")
+        return
 
     from database import get_user_by_id
     user = get_user_by_id(user_id)
+
     if not user:
+        logger.warning(f"❌ Пользователь с ID {user_id} не найден")
         await callback.answer("❌ Пользователь не найден")
         return
+
+    logger.warning(f"✅ Найден пользователь: {user['name']}")
 
     user_name = user['name']
     undelivered = get_undelivered_prizes()
@@ -859,17 +878,17 @@ async def callback_mark_delivered(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     parts = callback.data.split("_")
     user_name = parts[2]
     prize_name = "_".join(parts[3:])
-    
+
     updated = mark_as_delivered(user_name, prize_name)
-    
+
     if updated > 0:
         await callback.answer(f"✅ Отмечено {updated} шт как выданные!")
         undelivered = get_undelivered_prizes()
-        
+
         if user_name in undelivered and undelivered[user_name]:
             builder = InlineKeyboardBuilder()
             for p_name, count in undelivered[user_name].items():
@@ -879,7 +898,7 @@ async def callback_mark_delivered(callback: CallbackQuery) -> None:
                 )
             builder.button(text="◀️ Назад", callback_data="admin_undelivered")
             builder.adjust(1)
-            
+
             await callback.message.edit_text(
                 f"📋 *Не выданные призы*\n\n"
                 f"👤 *{user_name}*\n\n"
@@ -908,7 +927,7 @@ async def callback_admin_settings(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     text = (
         "⚙️ *Настройки*\n\n"
         f"👑 Администраторы: {ADMIN_IDS}\n"
@@ -919,7 +938,7 @@ async def callback_admin_settings(callback: CallbackQuery) -> None:
         "• Просмотр статистики\n"
         "• Управление невыданными призами"
     )
-    
+
     await callback.message.edit_text(
         text,
         parse_mode="Markdown",
