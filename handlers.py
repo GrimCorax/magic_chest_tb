@@ -614,7 +614,6 @@ async def callback_admin_give_keys(callback: CallbackQuery, state: FSMContext) -
         reply_markup=get_users_list(users, "give_keys")
     )
 
-
 @router.callback_query(F.data.startswith("give_keys_"))
 async def callback_give_keys_user(callback: CallbackQuery, state: FSMContext) -> None:
     """Выбор пользователя для выдачи ключей"""
@@ -622,8 +621,10 @@ async def callback_give_keys_user(callback: CallbackQuery, state: FSMContext) ->
         await callback.answer("❌ Доступ запрещен")
         return
 
+    # Формат: give_keys_{telegram_id}
     telegram_id = int(callback.data.split("_")[2])
-    user = get_user_by_telegram_id(telegram_id)
+    user = get_user_by_telegram_id(telegram_id)  # ← правильно, ищем по Telegram ID
+    # ...
     if not user:
         await callback.answer("❌ Пользователь не найден")
         return
