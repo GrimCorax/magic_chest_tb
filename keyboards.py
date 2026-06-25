@@ -81,8 +81,8 @@ def get_users_list(users: list, prefix: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     for user in users:
         builder.button(
-            text=f"👤 {user['id']}",
-            callback_data=f"{prefix}_{user['id']}"  # ← теперь ID, а не имя
+            text=f"👤 {user['name']}",
+            callback_data=f"{prefix}_{user['telegram_id']}"  # ← Telegram ID
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
