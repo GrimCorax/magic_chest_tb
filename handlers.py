@@ -614,6 +614,7 @@ async def callback_admin_give_keys(callback: CallbackQuery, state: FSMContext) -
         reply_markup=get_users_list(users, "give_keys")
     )
 
+
 @router.callback_query(F.data.startswith("give_keys_"))
 async def callback_give_keys_user(callback: CallbackQuery, state: FSMContext) -> None:
     """Выбор пользователя для выдачи ключей"""
@@ -621,10 +622,8 @@ async def callback_give_keys_user(callback: CallbackQuery, state: FSMContext) ->
         await callback.answer("❌ Доступ запрещен")
         return
 
-    # Формат: give_keys_{telegram_id}
     telegram_id = int(callback.data.split("_")[2])
-    user = get_user_by_telegram_id(telegram_id)  # ← правильно, ищем по Telegram ID
-    # ...
+    user = get_user_by_telegram_id(telegram_id)
     if not user:
         await callback.answer("❌ Пользователь не найден")
         return
@@ -733,8 +732,13 @@ async def callback_stats_user(callback: CallbackQuery) -> None:
         await callback.answer("❌ Доступ запрещен")
         return
 
-    telegram_id = int(callback.data.split("_")[1])
-    user = get_user_by_telegram_id(telegram_id)
+    # Извлекаем внутренний ID пользователя из callback_data
+    user_id = int(callback.data.split("_")[1])
+
+    # Ищем пользователя по внутреннему ID
+    from database import get_user_by_id
+    user = get_user_by_id(user_id)
+
     if not user:
         await callback.answer("❌ Пользователь не найден")
         return
@@ -786,37 +790,20 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
         )
         return
 
-    # ДИАГНОСТИКА
-    logger.warning(f"🔍 undelivered: {undelivered}")
-
     # Получаем соответствие имя → ID пользователя
     from database import get_all_users
     all_users = get_all_users('active')
     users_map = {user['name']: user['id'] for user in all_users}
 
-    # ДИАГНОСТИКА
-    logger.warning(f"🔍 users_map: {users_map}")
-
     builder = InlineKeyboardBuilder()
     for user_name, prizes in undelivered.items():
         total = sum(prizes.values())
         user_id = users_map.get(user_name)
-
-        # ДИАГНОСТИКА
-        logger.warning(f"🔍 user_name: {user_name}, user_id: {user_id}, total: {total}")
-
         if user_id is None:
-            logger.warning(f"❌ Пользователь {user_name} не найден в users_map")
             continue
-
-        callback_data = f"undelivered_user_{user_id}"
-
-        # ДИАГНОСТИКА
-        logger.warning(f"🔍 Создаём кнопку: text='👤 {user_name} ({total} шт)', callback_data='{callback_data}'")
-
         builder.button(
             text=f"👤 {user_name} ({total} шт)",
-            callback_data=callback_data
+            callback_data=f"undelivered_user_{user_id}"
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
@@ -832,19 +819,13 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
 @router.callback_query(F.data.startswith("undelivered_user_"))
 async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
     """Список невыданных призов пользователя"""
-
-    # ДИАГНОСТИКА
-    logger.warning(f"🔍 Получен callback: {callback.data}")
-
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
 
     try:
         user_id = int(callback.data.replace("undelivered_user_", ""))
-        logger.warning(f"🔍 Извлечён user_id: {user_id}")
-    except ValueError as e:
-        logger.error(f"❌ Ошибка преобразования user_id: {e}")
+    except ValueError:
         await callback.answer("❌ Ошибка данных")
         return
 
@@ -852,11 +833,8 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
     user = get_user_by_id(user_id)
 
     if not user:
-        logger.warning(f"❌ Пользователь с ID {user_id} не найден")
         await callback.answer("❌ Пользователь не найден")
         return
-
-    logger.warning(f"✅ Найден пользователь: {user['name']}")
 
     user_name = user['name']
     undelivered = get_undelivered_prizes()
@@ -880,16 +858,10 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
     for prize_name, count in undelivered[user_name].items():
         prize_id = prize_map.get(prize_name)
         if prize_id is None:
-            logger.warning(f"❌ Приз '{prize_name}' не найден в БД")
             continue
-
-        # Передаём ID приза, а не название
-        callback_data = f"mark_delivered_{user_id}_{prize_id}"
-        logger.warning(f"🔍 Создаём кнопку: callback_data='{callback_data}'")
-
         builder.button(
             text=f"🎁 {prize_name} — {count} шт",
-            callback_data=callback_data
+            callback_data=f"mark_delivered_{user_id}_{prize_id}"
         )
     builder.button(text="◀️ Назад", callback_data="admin_undelivered")
     builder.adjust(1)
@@ -910,7 +882,6 @@ async def callback_mark_delivered(callback: CallbackQuery) -> None:
         await callback.answer("❌ Доступ запрещен")
         return
 
-    # Формат: mark_delivered_{user_id}_{prize_id}
     parts = callback.data.split("_")
     user_id = int(parts[2])
     prize_id = int(parts[3])
