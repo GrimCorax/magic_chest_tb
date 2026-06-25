@@ -770,9 +770,9 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
+
     undelivered = get_undelivered_prizes()
-    
+
     if not undelivered:
         await callback.message.edit_text(
             "📋 *Не выданные призы*\n\n"
@@ -781,17 +781,26 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
             reply_markup=back_button()
         )
         return
-    
+
+    # Получаем соответствие имя → ID пользователя
+    from database import get_all_users
+    all_users = get_all_users('active')
+    users_map = {user['name']: user['id'] for user in all_users}
+
     builder = InlineKeyboardBuilder()
     for user_name, prizes in undelivered.items():
         total = sum(prizes.values())
+        user_id = users_map.get(user_name)
+        if user_id is None:
+            # Если пользователь не найден, пропускаем
+            continue
         builder.button(
             text=f"👤 {user_name} ({total} шт)",
-            callback_data=f"undelivered_user_{user_name}"
+            callback_data=f"undelivered_user_{user_id}"
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
-    
+
     await callback.message.edit_text(
         "📋 *Не выданные призы*\n\n"
         "Выберите пользователя:",
@@ -806,10 +815,20 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
     if not is_admin(callback.from_user.id):
         await callback.answer("❌ Доступ запрещен")
         return
-    
-    user_name = callback.data.replace("undelivered_user_", "")
+
+    # Получаем ID пользователя из callback_data
+    user_id = int(callback.data.replace("undelivered_user_", ""))
+
+    # Находим пользователя по ID
+    from database import get_user_by_id
+    user = get_user_by_id(user_id)
+    if not user:
+        await callback.answer("❌ Пользователь не найден")
+        return
+
+    user_name = user['name']
     undelivered = get_undelivered_prizes()
-    
+
     if user_name not in undelivered or not undelivered[user_name]:
         await callback.message.edit_text(
             f"📋 *Не выданные призы*\n\n"
@@ -819,7 +838,7 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
             reply_markup=back_button()
         )
         return
-    
+
     builder = InlineKeyboardBuilder()
     for prize_name, count in undelivered[user_name].items():
         builder.button(
@@ -828,7 +847,7 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
         )
     builder.button(text="◀️ Назад", callback_data="admin_undelivered")
     builder.adjust(1)
-    
+
     await callback.message.edit_text(
         f"📋 *Не выданные призы*\n\n"
         f"👤 *{user_name}*\n\n"
