@@ -870,11 +870,25 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
         )
         return
 
+    # Получаем ID призов по их названиям
+    from database import get_all_prizes
+    all_prizes = get_all_prizes(active_only=False)
+    prize_map = {prize['name']: prize['id'] for prize in all_prizes}
+
     builder = InlineKeyboardBuilder()
     for prize_name, count in undelivered[user_name].items():
+        prize_id = prize_map.get(prize_name)
+        if prize_id is None:
+            logger.warning(f"❌ Приз '{prize_name}' не найден в БД")
+            continue
+
+        # Передаём ID приза, а не название
+        callback_data = f"mark_delivered_{user_id}_{prize_id}"
+        logger.warning(f"🔍 Создаём кнопку: callback_data='{callback_data}'")
+
         builder.button(
             text=f"🎁 {prize_name} — {count} шт",
-            callback_data=f"mark_delivered_{user_name}_{prize_name}"
+            callback_data=callback_data
         )
     builder.button(text="◀️ Назад", callback_data="admin_undelivered")
     builder.adjust(1)
@@ -895,9 +909,21 @@ async def callback_mark_delivered(callback: CallbackQuery) -> None:
         await callback.answer("❌ Доступ запрещен")
         return
 
+    # Формат: mark_delivered_{user_id}_{prize_id}
     parts = callback.data.split("_")
-    user_name = parts[2]
-    prize_name = "_".join(parts[3:])
+    user_id = int(parts[2])
+    prize_id = int(parts[3])
+
+    from database import get_user_by_id, get_prize_by_id
+    user = get_user_by_id(user_id)
+    prize = get_prize_by_id(prize_id)
+
+    if not user or not prize:
+        await callback.answer("❌ Данные не найдены")
+        return
+
+    user_name = user['name']
+    prize_name = prize['name']
 
     updated = mark_as_delivered(user_name, prize_name)
 
@@ -906,11 +932,18 @@ async def callback_mark_delivered(callback: CallbackQuery) -> None:
         undelivered = get_undelivered_prizes()
 
         if user_name in undelivered and undelivered[user_name]:
+            from database import get_all_prizes
+            all_prizes = get_all_prizes(active_only=False)
+            prize_map = {p['name']: p['id'] for p in all_prizes}
+
             builder = InlineKeyboardBuilder()
             for p_name, count in undelivered[user_name].items():
+                p_id = prize_map.get(p_name)
+                if p_id is None:
+                    continue
                 builder.button(
                     text=f"🎁 {p_name} — {count} шт",
-                    callback_data=f"mark_delivered_{user_name}_{p_name}"
+                    callback_data=f"mark_delivered_{user_id}_{p_id}"
                 )
             builder.button(text="◀️ Назад", callback_data="admin_undelivered")
             builder.adjust(1)
