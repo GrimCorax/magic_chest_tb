@@ -785,21 +785,37 @@ async def callback_admin_undelivered(callback: CallbackQuery) -> None:
         )
         return
 
+    # ДИАГНОСТИКА
+    logger.warning(f"🔍 undelivered: {undelivered}")
+
     # Получаем соответствие имя → ID пользователя
     from database import get_all_users
     all_users = get_all_users('active')
     users_map = {user['name']: user['id'] for user in all_users}
 
+    # ДИАГНОСТИКА
+    logger.warning(f"🔍 users_map: {users_map}")
+
     builder = InlineKeyboardBuilder()
     for user_name, prizes in undelivered.items():
         total = sum(prizes.values())
         user_id = users_map.get(user_name)
+
+        # ДИАГНОСТИКА
+        logger.warning(f"🔍 user_name: {user_name}, user_id: {user_id}, total: {total}")
+
         if user_id is None:
-            # Если пользователь не найден, пропускаем
+            logger.warning(f"❌ Пользователь {user_name} не найден в users_map")
             continue
+
+        callback_data = f"undelivered_user_{user_id}"
+
+        # ДИАГНОСТИКА
+        logger.warning(f"🔍 Создаём кнопку: text='👤 {user_name} ({total} шт)', callback_data='{callback_data}'")
+
         builder.button(
             text=f"👤 {user_name} ({total} шт)",
-            callback_data=f"undelivered_user_{user_id}"
+            callback_data=callback_data
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
