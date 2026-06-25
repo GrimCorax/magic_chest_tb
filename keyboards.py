@@ -77,13 +77,12 @@ def prize_management_buttons() -> InlineKeyboardMarkup:
     return builder.as_markup()
 
 
-def get_users_list(users: List[Dict[str, Any]], action: str) -> InlineKeyboardMarkup:
-    """Список пользователей для выбора"""
+def get_users_list(users: list, prefix: str) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
-    for user in users[:20]:  # Telegram ограничение
+    for user in users:
         builder.button(
-            text=user['name'],
-            callback_data=f"{action}_{user['telegram_id']}"
+            text=f"👤 {user['id']}",
+            callback_data=f"{prefix}_{user['id']}"  # ← теперь ID, а не имя
         )
     builder.button(text="◀️ Назад", callback_data="back")
     builder.adjust(1)
