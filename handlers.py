@@ -53,7 +53,7 @@ def is_admin(telegram_id: int) -> bool:
     return telegram_id in ADMIN_IDS
 
 
-def safe_edit_message(callback: CallbackQuery, text: str, **kwargs) -> None:
+async def safe_edit_message(callback: CallbackQuery, text: str, **kwargs) -> None:
     """Безопасное редактирование сообщения"""
     try:
         await callback.message.edit_text(text, **kwargs)
