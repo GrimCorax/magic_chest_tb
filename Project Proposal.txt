@@ -1,0 +1,11 @@
+magic_chest/
+├── bot.py                 # Точка входа
+├── config.py              # Конфигурация
+├── database.py            # Работа с БД (SQLite)
+├── handlers.py            # Обработчики команд и callback'ов
+├── keyboards.py           # Клавиатуры
+├── utils.py               # Утилиты (логирование)
+├── requirements.txt       # Зависимости
+├── .env                   # Переменные окружения
+└── data/
+    └── magic_chest.db
