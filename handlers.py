@@ -622,7 +622,6 @@ async def callback_give_keys_user(callback: CallbackQuery, state: FSMContext) ->
         await callback.answer("❌ Доступ запрещен")
         return
 
-    # Формат: give_keys_{telegram_id}
     telegram_id = int(callback.data.split("_")[2])
     user = get_user_by_telegram_id(telegram_id)
     if not user:
@@ -733,33 +732,15 @@ async def callback_stats_user(callback: CallbackQuery) -> None:
         await callback.answer("❌ Доступ запрещен")
         return
 
-    # ДИАГНОСТИКА
-    logger.warning(f"🔍 Получен stats callback: {callback.data}")
-
     # Извлекаем telegram_id из callback_data
-    # Формат: stats_{telegram_id}
-    parts = callback.data.split("_")
-    if len(parts) < 2:
-        await callback.answer("❌ Ошибка данных")
-        return
-
-    try:
-        telegram_id = int(parts[1])
-        logger.warning(f"🔍 Извлечён telegram_id: {telegram_id}")
-    except ValueError:
-        logger.error(f"❌ Ошибка: в callback_data не число: {parts[1]}")
-        await callback.answer("❌ Ошибка формата ID")
-        return
+    telegram_id = int(callback.data.split("_")[1])
 
     # Ищем пользователя по Telegram ID
     user = get_user_by_telegram_id(telegram_id)
 
     if not user:
-        logger.warning(f"❌ Пользователь с Telegram ID {telegram_id} не найден в БД")
         await callback.answer("❌ Пользователь не найден")
         return
-
-    logger.warning(f"✅ Найден пользователь: {user['name']} (ID: {user['id']})")
 
     history = get_user_history_by_month(user['id'])
     stats = get_user_total_stats(user['id'])
@@ -841,14 +822,9 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
         await callback.answer("❌ Доступ запрещен")
         return
 
-    # ДИАГНОСТИКА
-    logger.warning(f"🔍 Получен undelivered callback: {callback.data}")
-
     try:
         user_id = int(callback.data.replace("undelivered_user_", ""))
-        logger.warning(f"🔍 Извлечён user_id: {user_id}")
-    except ValueError as e:
-        logger.error(f"❌ Ошибка преобразования user_id: {e}")
+    except ValueError:
         await callback.answer("❌ Ошибка данных")
         return
 
@@ -856,11 +832,8 @@ async def callback_undelivered_user_prizes(callback: CallbackQuery) -> None:
     user = get_user_by_id(user_id)
 
     if not user:
-        logger.warning(f"❌ Пользователь с ID {user_id} не найден")
         await callback.answer("❌ Пользователь не найден")
         return
-
-    logger.warning(f"✅ Найден пользователь: {user['name']}")
 
     user_name = user['name']
     undelivered = get_undelivered_prizes()
