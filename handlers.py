@@ -311,7 +311,27 @@ async def callback_back(callback: CallbackQuery) -> None:
     """Назад"""
     try:
         if is_admin(callback.from_user.id):
-            await show_admin_panel(callback)
+            # Если админ, показываем админ-панель
+            pending_users = get_pending_users()
+            pending_count = len(pending_users)
+
+            new_text = (
+                f"👑 *Админ-панель*\n\n"
+                f"📝 Ожидают подтверждения: *{pending_count}*\n"
+                f"Выберите действие:"
+            )
+            new_markup = admin_menu()
+
+            # Проверяем, изменилось ли сообщение
+            if (callback.message.text != new_text or
+                    callback.message.reply_markup != new_markup):
+                await callback.message.edit_text(
+                    new_text,
+                    parse_mode="Markdown",
+                    reply_markup=new_markup
+                )
+            else:
+                await callback.answer("⏳ Вы уже в админ-панели")
             return
 
         user = get_user_by_telegram_id(callback.from_user.id)
@@ -319,11 +339,20 @@ async def callback_back(callback: CallbackQuery) -> None:
             await callback.answer("❌ Ошибка доступа")
             return
 
-        await callback.message.edit_text(
-            "🏠 *Главное меню*",
-            parse_mode="Markdown",
-            reply_markup=main_menu(callback.from_user.id)
-        )
+        new_text = "🏠 *Главное меню*"
+        new_markup = main_menu(callback.from_user.id)
+
+        # Проверяем, изменилось ли сообщение
+        if (callback.message.text != new_text or
+                callback.message.reply_markup != new_markup):
+            await callback.message.edit_text(
+                new_text,
+                parse_mode="Markdown",
+                reply_markup=new_markup
+            )
+        else:
+            await callback.answer("⏳ Вы уже в главном меню")
+
     except Exception as e:
         logger.error(f"Ошибка при возврате: {e}")
         await callback.answer("❌ Произошла ошибка")
