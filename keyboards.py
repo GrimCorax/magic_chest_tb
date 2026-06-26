@@ -7,7 +7,12 @@ def main_menu(user_id: int) -> InlineKeyboardMarkup:
     builder = InlineKeyboardBuilder()
     builder.button(text="🎁 Открыть сундук", callback_data="open_chest")
     builder.button(text="📜 История", callback_data="history")
-    builder.button(text="👑 Админ-панель", callback_data="admin_panel")
+
+    # === ИСПРАВЛЕНИЕ ===
+    from config import ADMIN_IDS
+    if user_id in ADMIN_IDS:
+        builder.button(text="👑 Админ-панель", callback_data="admin_panel")
+
     builder.adjust(1)
     return builder.as_markup()
 

@@ -668,11 +668,19 @@ async def process_give_keys_count(message: Message, state: FSMContext) -> None:
         await state.clear()
         return
 
-    admin_name = message.from_user.first_name or "Админ"
+    # === ИСПРАВЛЕНИЕ ===
+    # Получаем пользователя по ID
+    user = get_user_by_id(user_id)
+    if not user:
+        await message.answer("❌ Пользователь не найден в базе данных")
+        await state.clear()
+        return
+
+    admin_name = "Пятёрик"
     added = add_keys(user_id, message.from_user.id, admin_name, count)
 
-    user = get_user_by_id(user_id)
-    if user:
+    if added > 0:
+        # Отправляем уведомление пользователю
         try:
             active_keys = get_active_keys_count(user_id)
             await message.bot.send_message(
@@ -685,16 +693,20 @@ async def process_give_keys_count(message: Message, state: FSMContext) -> None:
                 parse_mode="Markdown"
             )
         except Exception as e:
-            logger.error(f"Не удалось уведомить пользователя: {e}")
+            logger.error(f"Не удалось уведомить пользователя {user['telegram_id']}: {e}")
+            await message.answer("⚠️ Ключи выданы, но не удалось уведомить пользователя.")
 
-    await message.answer(
-        f"✅ *Ключи выданы!*\n\n"
-        f"👤 Пользователь: {user_name}\n"
-        f"📦 Количество: {count}\n"
-        f"✅ Всего добавлено: {added} ключей",
-        parse_mode="Markdown",
-        reply_markup=back_button()
-    )
+        await message.answer(
+            f"✅ *Ключи выданы!*\n\n"
+            f"👤 Пользователь: {user_name}\n"
+            f"📦 Количество: {count}\n"
+            f"✅ Всего добавлено: {added} ключей",
+            parse_mode="Markdown",
+            reply_markup=back_button()
+        )
+    else:
+        await message.answer("❌ Ошибка при выдаче ключей", reply_markup=back_button())
+
     await state.clear()
 
 
