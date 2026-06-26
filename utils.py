@@ -51,3 +51,13 @@ def format_datetime(dt_str: str) -> str:
 def safe_get(data: dict, key: str, default=None):
     """Безопасное получение значения из словаря"""
     return data.get(key, default)
+
+def chest_opening_animation() -> str:
+    """Анимация открытия сундука"""
+    return (
+        "🎁 *Открываем сундук...*\n\n"
+        "🔓 Ключ подходит...\n"
+        "⚙️ Механизмы активируются...\n"
+        "💫 Магия оживает...\n\n"
+        "✨ *Вот что внутри!*"
+    )
