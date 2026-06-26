@@ -263,7 +263,11 @@ async def callback_open_chest(callback: CallbackQuery) -> None:
             reply_markup=main_menu(callback.from_user.id)
         )
     except Exception as e:
-        logger.error(f"Ошибка при открытии сундука: {e}")
+        # === ДИАГНОСТИКА ===
+        logger.error(f"❌ Ошибка при открытии сундука: {e}")
+        import traceback
+        logger.error(traceback.format_exc())
+        # ===================
         await callback.answer("❌ Произошла ошибка. Попробуйте позже.")
 
 
