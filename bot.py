@@ -102,6 +102,10 @@ async def main() -> None:
     signal.signal(signal.SIGTERM, handle_shutdown)
     
     logger.info("✅ Бот запущен и готов к работе!")
+
+    # Удаляем вебхук, чтобы избежать конфликта с getUpdates (polling)
+    await bot.delete_webhook(drop_pending_updates=True)
+    logger.info("🔗 Вебхук удалён, режим polling активен")
     
     try:
         await dp.start_polling(bot, skip_updates=True)
